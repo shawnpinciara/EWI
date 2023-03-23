@@ -1,0 +1,38 @@
+#include <BLEMIDI_Transport.h>
+#include <hardware/BLEMIDI_ESP32.h>
+
+BLEMIDI_CREATE_INSTANCE("EWII",MIDI);
+
+const int numButtons = 4;  // The number of touch buttons you have
+const int buttonPins[numButtons] = { 4, 0, 2, 15};  // The pins of the touch buttons
+const int midiNotes[numButtons] = { 60, 62, 64, 65 };  // The MIDI notes to send when a button is pressed
+bool buttonStates[numButtons] = { false ,false ,false ,false };  // Initialize all buttons to be off
+
+void handleButtonInterrupt(int buttonIndex) {
+  int touchValue = touchRead(buttonPins[buttonIndex]);
+  if (touchValue < 30) {  // If the button is pressed
+    if (!buttonStates[buttonIndex]) {  // If the button state has changed to on
+      buttonStates[buttonIndex] = true;  // Update the button state
+      MIDI.sendNoteOn(midiNotes[buttonIndex], 127, 1);  // Send a MIDI note on message
+    }
+  }
+  else {  // If the button is released
+    if (buttonStates[buttonIndex]) {  // If the button state has changed to off
+      buttonStates[buttonIndex] = false;  // Update the button state
+      MIDI.sendNoteOff(midiNotes[buttonIndex], 127, 1);  // Send a MIDI note off message
+    }
+  }
+}
+
+void setup() {
+  MIDI.begin(10);
+  for (int i = 0; i < numButtons; i++) {
+    pinMode(buttonPins[i], INPUT);
+    attachInterrupt(digitalPinToInterrupt(buttonPins[i]), std::bind(handleButtonInterrupt, i), CHANGE);
+  }
+}
+
+void loop() {
+  BLEMIDI.poll();  // Poll the BLE transport to handle incoming messages
+}
+
